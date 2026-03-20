@@ -3,7 +3,8 @@
 #include <iostream>
 #include <string>
 #include <fstream>
-#include <cmath>
+#define _USE_MATH_DEFINES
+#include <math.h>
 #include <vector>
 
 using namespace std;
@@ -172,7 +173,7 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
 	if (action == GLFW_PRESS || action == GLFW_REPEAT) {
 		if (key == GLFW_KEY_S) {
 			// Feladat szerinti indítás: 25 fokos irányvektor
-			float alpha = 25.0f * 3.14159f / 180.0f;
+			float alpha = 25.0f * M_PI / 180.0f;
 			velX = cos(alpha) * STEP_LENGTH;
 			velY = sin(alpha) * STEP_LENGTH;
 		}

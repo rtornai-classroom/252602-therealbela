@@ -151,55 +151,53 @@ void init(GLFWwindow* window) {
 }
 
 void display(GLFWwindow* window) {
-    // Háttér törlése
+    // 1. Háttér törlése
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
     if (controlPoints.empty()) return;
 
-    // VAO kötése (ebben van a VBO leírója)
     glBindVertexArray(vao);
 
-    // --- 1. BÉZIER GÖRBE RAJZOLÁSA (Zöld) ---
-    glUseProgram(curveProgram);
+    // --- I. KONTROLL POLIGON (Kék vonalak) ---
+    // Azért ezzel kezdünk, hogy ez legyen a legalsó réteg.
+    glUseProgram(basicProgram);
+    glUniformMatrix4fv(glGetUniformLocation(basicProgram, "matProjection"), 1, GL_FALSE, glm::value_ptr(matProjection));
+    glUniformMatrix4fv(glGetUniformLocation(basicProgram, "matModelView"), 1, GL_FALSE, glm::value_ptr(matModelView));
 
-    // Transzformációs mátrixok átadása
+    // isPoint = false -> Kék szín a vonalaknak [cite: 40]
+    glUniform1i(glGetUniformLocation(basicProgram, "isPoint"), 0);
+    glDrawArrays(GL_LINE_STRIP, 0, (int)controlPoints.size());
+
+
+    // --- II. BÉZIER GÖRBE (Zöld ív) ---
+    // A poligon felett, de a pontok alatt jelenik meg.
+    glUseProgram(curveProgram);
     glUniformMatrix4fv(glGetUniformLocation(curveProgram, "matProjection"), 1, GL_FALSE, glm::value_ptr(matProjection));
     glUniformMatrix4fv(glGetUniformLocation(curveProgram, "matModelView"), 1, GL_FALSE, glm::value_ptr(matModelView));
-
-    // Típus és aktuális pontszám
     glUniform1i(glGetUniformLocation(curveProgram, "curveType"), BEZIER_BERNSTEIN);
     glUniform1i(glGetUniformLocation(curveProgram, "controlPointsNumber"), (int)controlPoints.size());
 
-    // FONTOS: Kontrollpontok átadása Uniform tömbként (hogy ne legyen 32-es limit)
-    // Ehhez a CurveTessEvalShader-ben lennie kell egy: uniform vec3 u_ControlPoints[128];
+    // Átadjuk a pontokat a uniform tömbnek, hogy ne érjük el a 32-es patch limitet
     GLint pointsLoc = glGetUniformLocation(curveProgram, "u_ControlPoints");
     if (pointsLoc != -1) {
         glUniform3fv(pointsLoc, (int)controlPoints.size(), glm::value_ptr(controlPoints[0]));
     }
 
-    // Tesszelláció indítása: most már csak 1 patchet küldünk, 
-    // mert a shader a uniform tömbbõl maga olvassa ki az összes pontot.
+    // Fixen 1 patchet küldünk, a shader a uniformból dolgozik
     glPatchParameteri(GL_PATCH_VERTICES, 1);
     glDrawArrays(GL_PATCHES, 0, 1);
 
 
-    // --- 2. KONTROLL POLIGON ÉS PONTOK RAJZOLÁSA ---
-    // A vonalakhoz és pontokhoz a "basicProgram"-ot használjuk, ami a VBO-ból olvas.
+    // --- III. KONTROLLPONTOK (Piros körök) ---
+    // Ezt rajzoljuk utoljára, így ez lesz legfelül.
     glUseProgram(basicProgram);
-
+    // Ismét beállítjuk a mátrixokat, biztos ami biztos
     glUniformMatrix4fv(glGetUniformLocation(basicProgram, "matProjection"), 1, GL_FALSE, glm::value_ptr(matProjection));
     glUniformMatrix4fv(glGetUniformLocation(basicProgram, "matModelView"), 1, GL_FALSE, glm::value_ptr(matModelView));
 
-    GLint isPointLoc = glGetUniformLocation(basicProgram, "isPoint");
-
-    // 2a. Kontroll poligon (Kék vonalak) [cite: 40]
-    glUniform1i(isPointLoc, 0);
-    // Itt továbbra is a teljes pontszámot (controlPoints.size()) kell megadni!
-    glDrawArrays(GL_LINE_STRIP, 0, (int)controlPoints.size());
-
-    // 2b. Kontrollpontok (Piros körök) [cite: 39]
-    glUniform1i(isPointLoc, 1);
+    // isPoint = true -> Piros körök élsimítással [cite: 36, 37, 39]
+    glUniform1i(glGetUniformLocation(basicProgram, "isPoint"), 1);
     glPointSize(15.0f);
     glDrawArrays(GL_POINTS, 0, (int)controlPoints.size());
 }
